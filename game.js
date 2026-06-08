@@ -235,7 +235,6 @@ let orderMode   = 'random';
 let streak = 0;
 let waiting = false;
 let disputeTimer = null;
-let errCount = 0;
 
 function pointsPerCorrect() {
   const base = answerMode === 'choice' ? 1 : answerMode === 'auto' ? 2 : 3;
@@ -294,13 +293,26 @@ function resolveArtId(pk) {
   return pk.id;
 }
 
+// For high-ID form variants that share artwork with their base Pokémon
+// (e.g. miraidon-drive-mode, koraidon-sprinting-build), find the base ID.
+// Returns null if no base is found, or if the Pokémon is already a base form.
+function resolveFormBaseId(pk) {
+  if (pk.id < 10000) return null;
+  const parts = pk.api.split('-');
+  for (let i = parts.length - 1; i >= 1; i--) {
+    const candidate = parts.slice(0, i).join('-');
+    const base = allPk.find(p => p.id < 10000 && p.api === candidate && !p.sh);
+    if (base) return base.id;
+  }
+  return null;
+}
+
 // ────────────────────────────────────────────────────────────
 //  LOAD POKÉMON
 // ────────────────────────────────────────────────────────────
 function loadPk(idx) {
   const pk = gameList[idx];
   if (!pk) return;
-  errCount = 0;
 
   const artId = resolveArtId(pk);
 
@@ -338,11 +350,22 @@ function loadPk(idx) {
   img.className = 'hidden';
   if (shadowMode) img.classList.add('silhouette');
 
+  // Build fallback chain: art → sprite, (shiny→non-shiny), then base form for high-ID variants
+  const fallbacks = [sprUrl(artId, pk.sh)];
+  if (pk.sh) {
+    fallbacks.push(artUrl(artId, false));
+    fallbacks.push(sprUrl(artId, false));
+  }
+  const baseId = resolveFormBaseId(pk);
+  if (baseId) {
+    fallbacks.push(artUrl(baseId, pk.sh));
+    if (pk.sh) fallbacks.push(artUrl(baseId, false));
+    fallbacks.push(sprUrl(baseId, false));
+  }
+  let fbIdx = 0;
+
   img.onerror = () => {
-    errCount++;
-    if (errCount === 1) img.src = sprUrl(artId, pk.sh);
-    else if (errCount === 2 && pk.sh) img.src = artUrl(artId, false);
-    else if (errCount === 3) img.src = sprUrl(artId, false);
+    if (fbIdx < fallbacks.length) { img.src = fallbacks[fbIdx++]; }
     else { img.onerror = null; img.classList.remove('hidden'); }
   };
   img.onload = () => {
