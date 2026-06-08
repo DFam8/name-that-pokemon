@@ -1,0 +1,614 @@
+'use strict';
+
+// ────────────────────────────────────────────────────────────
+//  CONFIG
+// ────────────────────────────────────────────────────────────
+const LIVES_MAX   = 3;
+const REGEN_AT    = 100;   // lives restored every N correct
+const CACHE_KEY   = 'pkmnquiz_v6_list';
+const HS_KEY      = 'pkmnquiz_highscore';
+const REPORTS_KEY = 'pkmnquiz_reports';
+
+// ────────────────────────────────────────────────────────────
+//  NAME FORMATTING
+// ────────────────────────────────────────────────────────────
+const SPECIAL = {
+  'mr-mime':'Mr. Mime','mr-rime':'Mr. Rime','mime-jr':'Mime Jr.',
+  'type-null':'Type: Null','ho-oh':'Ho-Oh','porygon-z':'Porygon-Z',
+  'jangmo-o':'Jangmo-o','hakamo-o':'Hakamo-o','kommo-o':'Kommo-o',
+  'tapu-koko':'Tapu Koko','tapu-lele':'Tapu Lele','tapu-bulu':'Tapu Bulu','tapu-fini':'Tapu Fini',
+  'nidoran-f':'Nidoran♀','nidoran-m':'Nidoran♂',
+  'flabebe':'Flabébé','farfetchd':"Farfetch'd",'sirfetchd':"Sirfetch'd",
+  'great-tusk':'Great Tusk','scream-tail':'Scream Tail','brute-bonnet':'Brute Bonnet',
+  'flutter-mane':'Flutter Mane','slither-wing':'Slither Wing','sandy-shocks':'Sandy Shocks',
+  'iron-treads':'Iron Treads','iron-bundle':'Iron Bundle','iron-hands':'Iron Hands',
+  'iron-jugulis':'Iron Jugulis','iron-moth':'Iron Moth','iron-thorns':'Iron Thorns',
+  'roaring-moon':'Roaring Moon','iron-valiant':'Iron Valiant',
+  'walking-wake':'Walking Wake','iron-leaves':'Iron Leaves',
+  'gouging-fire':'Gouging Fire','raging-bolt':'Raging Bolt',
+  'iron-boulder':'Iron Boulder','iron-crown':'Iron Crown',
+  'chi-yu':'Chi-Yu','chien-pao':'Chien-Pao','ting-lu':'Ting-Lu','wo-chien':'Wo-Chien',
+  'greninja-battle-bond':'Ash-Greninja',
+  'pikachu-original-cap':'Pikachu (Original Cap)',
+  'pikachu-hoenn-cap':'Pikachu (Hoenn Cap)',
+  'pikachu-sinnoh-cap':'Pikachu (Sinnoh Cap)',
+  'pikachu-unova-cap':'Pikachu (Unova Cap)',
+  'pikachu-kalos-cap':'Pikachu (Kalos Cap)',
+  'pikachu-alola-cap':'Pikachu (Alola Cap)',
+  'pikachu-partner-cap':'Pikachu (Partner Cap)',
+  'pikachu-world-cap':'Pikachu (World Cap)',
+  'tauros-paldea-combat':'Paldean Tauros (Combat Breed)',
+  'tauros-paldea-blaze':'Paldean Tauros (Blaze Breed)',
+  'tauros-paldea-aqua':'Paldean Tauros (Aqua Breed)',
+};
+const REGIONAL = { alola:'Alolan', galar:'Galarian', hisui:'Hisuian', paldea:'Paldean' };
+
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+function formatBase(n) {
+  if (SPECIAL[n]) return SPECIAL[n];
+  return n.split('-').map(cap).join(' ');
+}
+function formatName(api) {
+  if (SPECIAL[api]) return SPECIAL[api];
+  const p = api.split('-');
+  const last = p[p.length - 1];
+
+  for (const [region, prefix] of Object.entries(REGIONAL)) {
+    const ri = p.indexOf(region);
+    if (ri !== -1) {
+      const base   = formatBase(p.slice(0, ri).join('-'));
+      const suffix = p.slice(ri + 1);
+      return prefix + ' ' + base + (suffix.length ? ' (' + suffix.map(cap).join(' ') + ')' : '');
+    }
+  }
+
+  if (p.includes('mega')) {
+    const mi = p.indexOf('mega');
+    const suf = p.slice(mi+1).map(s => s.toUpperCase()).join(' ');
+    return 'Mega ' + formatBase(p.slice(0,mi).join('-')) + (suf ? ' ' + suf : '');
+  }
+  if (last === 'gmax')   return 'Gigantamax ' + formatBase(p.slice(0,-1).join('-'));
+  if (last === 'primal') return 'Primal '     + formatBase(p.slice(0,-1).join('-'));
+  if (last === 'origin') return formatBase(p.slice(0,-1).join('-')) + ' (Origin Forme)';
+  if (last === 'totem')  return 'Totem '      + formatBase(p.slice(0,-1).join('-'));
+
+  return formatBase(api);
+}
+
+// ────────────────────────────────────────────────────────────
+//  ANSWER CHECK  (exact + fuzzy Levenshtein)
+// ────────────────────────────────────────────────────────────
+function norm(s) {
+  return s.toLowerCase()
+    .replace(/♀/g,'f').replace(/♂/g,'m')
+    .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a')
+    .replace(/[ïî]/g,'i').replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u')
+    .replace(/[.'':,\-]/g,'').replace(/\s+/g,' ').trim();
+}
+function acceptedSet(display) {
+  const s = new Set();
+  const add = v => s.add(norm(v));
+  add(display);
+  add(display.replace('♀','F').replace('♂','M'));
+  add(display.replace('♀','Female').replace('♂','Male'));
+  add(display.replace(/[.'':]/g,''));
+  add(display.replace(/[.'':]/g,' '));
+  return s;
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const row = Array.from({length: n+1}, (_,i) => i);
+  for (let i = 1; i <= m; i++) {
+    let prev = i;
+    for (let j = 1; j <= n; j++) {
+      const val = a[i-1] === b[j-1] ? row[j-1] : 1 + Math.min(prev, row[j], row[j-1]);
+      row[j-1] = prev;
+      prev = val;
+    }
+    row[n] = prev;
+  }
+  return row[n];
+}
+
+function allowedErrors(len) {
+  if (len <= 4)  return 0;
+  if (len <= 7)  return 1;
+  if (len <= 12) return 2;
+  return 3;
+}
+
+function checkAnswer(typed, display) {
+  const t = norm(typed);
+  for (const v of acceptedSet(display)) {
+    if (t === v) return { ok: true, fuzzy: false };
+  }
+  const target = norm(display);
+  const dist = levenshtein(t, target);
+  const ok = dist <= allowedErrors(target.length);
+  return { ok, fuzzy: ok };
+}
+
+// ────────────────────────────────────────────────────────────
+//  SPRITES
+// ────────────────────────────────────────────────────────────
+const artUrl = (id, sh) => sh
+  ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${id}.png`
+  : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+const sprUrl = (id, sh) => sh
+  ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${id}.png`
+  : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+
+// ────────────────────────────────────────────────────────────
+//  BUILD LIST
+// ────────────────────────────────────────────────────────────
+async function buildList(onProg) {
+  try {
+    const c = localStorage.getItem(CACHE_KEY);
+    if (c) {
+      const p = JSON.parse(c);
+      if (p && p.length > 100) { onProg(100, `Loaded ${p.length} entries from cache`); return p; }
+    }
+  } catch(e) {}
+
+  onProg(5, 'Connecting to PokéAPI…');
+  const r = await fetch('https://pokeapi.co/api/v2/pokemon?limit=10000');
+  if (!r.ok) throw new Error('Network error');
+  const data = await r.json();
+
+  onProg(15, `Building ${data.results.length} Pokémon…`);
+  const list = [];
+  const total = data.results.length;
+
+  for (let i = 0; i < total; i++) {
+    const pk = data.results[i];
+    const id = parseInt(pk.url.split('/').filter(Boolean).pop());
+    const d = formatName(pk.name);
+    list.push({ id, api: pk.name, d, sh: false,  di: i });
+    list.push({ id, api: pk.name, d: 'Shiny ' + d, sh: true, di: i });
+    if (i % 100 === 0) onProg(15 + Math.round(i/total * 75), `Processing… (${i}/${total})`);
+  }
+
+  onProg(95, 'Saving…');
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(list)); } catch(e) {}
+  onProg(100, `Ready — ${list.length} entries`);
+  return list;
+}
+
+// ────────────────────────────────────────────────────────────
+//  SHUFFLE / SORT
+// ────────────────────────────────────────────────────────────
+function shuffle(a) {
+  const r = [...a];
+  for (let i = r.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+}
+
+// ────────────────────────────────────────────────────────────
+//  TIMER
+// ────────────────────────────────────────────────────────────
+let timerStart = 0, timerEl, timerRAF;
+function startTimer() {
+  timerStart = Date.now();
+  timerEl = document.getElementById('timer');
+  function tick() {
+    const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+    const m = String(Math.floor(elapsed/60)).padStart(2,'0');
+    const s = String(elapsed % 60).padStart(2,'0');
+    timerEl.textContent = m + ':' + s;
+    timerRAF = requestAnimationFrame(tick);
+  }
+  tick();
+}
+function stopTimer() { cancelAnimationFrame(timerRAF); }
+
+// ────────────────────────────────────────────────────────────
+//  DOM HELPERS
+// ────────────────────────────────────────────────────────────
+const $id = id => document.getElementById(id);
+const Screens = {
+  title:    $id('title-screen'),
+  loading:  $id('loading-screen'),
+  game:     $id('game-screen'),
+  gameover: $id('gameover-screen'),
+  complete: $id('complete-screen'),
+};
+function show(name) {
+  Object.values(Screens).forEach(s => s.classList.remove('active'));
+  Screens[name].classList.add('active');
+}
+
+// ────────────────────────────────────────────────────────────
+//  GAME STATE
+// ────────────────────────────────────────────────────────────
+let allPk = [], gameList = [];
+let G = {};
+let shadowMode = false;
+let orderMode  = 'random';
+let streak = 0;
+let waiting = false;
+let disputeTimer = null;
+let errCount = 0;
+
+function makeGameList() {
+  if (orderMode === 'dex')   return [...allPk].sort((a,b) => a.di - b.di);
+  if (orderMode === 'chaos') return shuffle(allPk);
+  return shuffle(allPk);
+}
+
+function newGame() {
+  stopTimer();
+  gameList = makeGameList();
+  G = { idx: 0, lives: LIVES_MAX, score: 0, total: gameList.length };
+  streak = 0;
+  waiting = false;
+  show('game');
+  updateHUD();
+  startTimer();
+  loadPk(0);
+  $id('name-input').focus();
+}
+
+// ────────────────────────────────────────────────────────────
+//  HUD
+// ────────────────────────────────────────────────────────────
+function getHS()  { return parseInt(localStorage.getItem(HS_KEY) || '0'); }
+function saveHS(n){ localStorage.setItem(HS_KEY, n); }
+
+function updateHUD() {
+  $id('score-num').textContent = G.score;
+  $id('score-den').textContent = '/ ' + G.total;
+  $id('score-best').textContent = 'Best: ' + getHS();
+  const pct = G.total > 0 ? G.score / G.total * 100 : 0;
+  $id('prog-fill').style.width = pct + '%';
+
+  document.querySelectorAll('.heart').forEach(h => {
+    h.classList.toggle('dead', parseInt(h.dataset.n) > G.lives);
+  });
+
+  const sb = $id('streak-badge');
+  $id('streak-num').textContent = streak;
+  sb.classList.toggle('on', streak >= 3);
+}
+
+// ────────────────────────────────────────────────────────────
+//  SPRITE ID RESOLUTION
+// ────────────────────────────────────────────────────────────
+function resolveArtId(pk) {
+  if (/^minior-.+-meteor$/.test(pk.api)) {
+    const coreApi = pk.api.replace(/-meteor$/, '');
+    const core = allPk.find(p => p.api === coreApi && !p.sh);
+    if (core) return core.id;
+  }
+  return pk.id;
+}
+
+// ────────────────────────────────────────────────────────────
+//  LOAD POKÉMON
+// ────────────────────────────────────────────────────────────
+function loadPk(idx) {
+  const pk = gameList[idx];
+  if (!pk) return;
+  errCount = 0;
+
+  const artId = resolveArtId(pk);
+
+  $id('pk-num').textContent = '#' + String(pk.id).padStart(3, '0');
+
+  const inp = $id('name-input');
+  inp.value = ''; inp.className = ''; inp.disabled = false;
+  $id('submit-btn').disabled = false;
+  $id('feedback').textContent = ''; $id('feedback').className = 'feedback';
+  $id('dispute-btn').style.display = 'none';
+  $id('type-row').innerHTML = '';
+
+  const img = $id('pk-img');
+  img.className = 'hidden';
+  if (shadowMode) img.classList.add('silhouette');
+
+  img.onerror = () => {
+    errCount++;
+    if (errCount === 1) img.src = sprUrl(artId, pk.sh);
+    else if (errCount === 2 && pk.sh) img.src = artUrl(artId, false);
+    else if (errCount === 3) img.src = sprUrl(artId, false);
+    else { img.onerror = null; img.classList.remove('hidden'); }
+  };
+  img.onload = () => {
+    img.style.imageRendering = img.src.includes('/other/official-artwork') ? 'auto' : 'pixelated';
+    img.classList.remove('hidden');
+    void img.offsetWidth;
+    img.classList.add('pop');
+    if (shadowMode) img.classList.add('silhouette');
+  };
+  img.src = artUrl(artId, pk.sh);
+}
+
+// ────────────────────────────────────────────────────────────
+//  REVEAL (show types after correct / wrong)
+// ────────────────────────────────────────────────────────────
+function revealPk(pk) {
+  const img = $id('pk-img');
+  img.classList.remove('silhouette');
+  img.classList.add('correct-flash');
+
+  fetch(`https://pokeapi.co/api/v2/pokemon/${pk.api}`)
+    .then(r => r.json())
+    .then(data => {
+      const tr = $id('type-row');
+      tr.innerHTML = '';
+      (data.types || []).forEach(t => {
+        const pill = document.createElement('span');
+        pill.className = `type-pill on t-${t.type.name}`;
+        pill.textContent = t.type.name;
+        tr.appendChild(pill);
+      });
+    }).catch(() => {});
+}
+
+// ────────────────────────────────────────────────────────────
+//  SUBMIT
+// ────────────────────────────────────────────────────────────
+function submit() {
+  if (waiting) return;
+  const inp = $id('name-input');
+  const typed = inp.value.trim();
+  if (!typed) return;
+
+  const pk = gameList[G.idx];
+  if (!pk) return;
+
+  const { ok, fuzzy } = checkAnswer(typed, pk.d);
+
+  if (ok) {
+    inp.classList.add('ok');
+    G.score++;
+    streak++;
+    $id('feedback').className = 'feedback ok';
+    $id('feedback').textContent = fuzzy ? `✓  Close enough! (${pk.d})` : `✓  ${pk.d}`;
+    inp.disabled = true;
+    $id('submit-btn').disabled = true;
+    revealPk(pk);
+
+    if (G.score > 0 && G.score % REGEN_AT === 0) {
+      waiting = true;
+      setTimeout(() => showMilestone(G.score), 500);
+    } else {
+      waiting = true;
+      setTimeout(advance, 800);
+    }
+  } else {
+    inp.classList.add('bad');
+    G.lives--;
+    streak = 0;
+    const hn = G.lives + 1;
+    const h = document.querySelector(`.heart[data-n="${hn}"]`);
+    if (h) { h.classList.add('pulse'); setTimeout(() => h.classList.remove('pulse'), 400); }
+    updateHUD();
+
+    inp.disabled = true;
+    $id('submit-btn').disabled = true;
+
+    if (G.lives <= 0) {
+      $id('feedback').className = 'feedback bad';
+      $id('feedback').textContent = `✗  It was "${pk.d}" — Game over!`;
+      waiting = true;
+      revealPk(pk);
+      $id('dispute-btn').style.display = 'inline-block';
+      disputeTimer = setTimeout(gameOver, 2400);
+    } else {
+      $id('feedback').className = 'feedback bad';
+      $id('feedback').textContent = `✗  It was "${pk.d}" — ${G.lives} life${G.lives===1?'':'s'} left`;
+      revealPk(pk);
+      waiting = true;
+      $id('dispute-btn').style.display = 'inline-block';
+      disputeTimer = setTimeout(advance, 2000);
+    }
+  }
+  updateHUD();
+}
+
+// ────────────────────────────────────────────────────────────
+//  SKIP
+// ────────────────────────────────────────────────────────────
+function doSkip() {
+  if (waiting) return;
+  const inp = $id('name-input');
+  inp.value = '???';
+  inp.classList.add('bad');
+  const pk = gameList[G.idx];
+  G.lives--;
+  streak = 0;
+  const hn = G.lives + 1;
+  const h = document.querySelector(`.heart[data-n="${hn}"]`);
+  if (h) { h.classList.add('pulse'); setTimeout(() => h.classList.remove('pulse'), 400); }
+  updateHUD();
+  inp.disabled = true;
+  $id('submit-btn').disabled = true;
+  revealPk(pk);
+
+  if (G.lives <= 0) {
+    $id('feedback').className = 'feedback bad';
+    $id('feedback').textContent = `It was "${pk.d}" — Game over!`;
+    waiting = true;
+    $id('dispute-btn').style.display = 'inline-block';
+    disputeTimer = setTimeout(gameOver, 2400);
+  } else {
+    $id('feedback').className = 'feedback bad';
+    $id('feedback').textContent = `It was "${pk.d}"`;
+    waiting = true;
+    $id('dispute-btn').style.display = 'inline-block';
+    disputeTimer = setTimeout(advance, 2000);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+//  GAME FLOW
+// ────────────────────────────────────────────────────────────
+function advance() {
+  waiting = false;
+  G.idx++;
+  if (G.idx >= gameList.length) { finishGame(true); return; }
+  updateHUD();
+  loadPk(G.idx);
+  $id('name-input').focus();
+}
+
+function gameOver() { finishGame(false); }
+
+function finishGame(isComplete) {
+  waiting = false;
+  stopTimer();
+  const prev = getHS();
+  const isNew = G.score > prev;
+  if (isNew) saveHS(G.score);
+  const hs = isNew ? G.score : prev;
+
+  if (isComplete) {
+    $id('cmp-total').textContent = G.score.toLocaleString();
+    $id('cmp-hs').textContent    = hs.toLocaleString();
+    $id('cmp-record').classList.toggle('on', isNew);
+    show('complete');
+  } else {
+    $id('go-score').textContent = G.score.toLocaleString();
+    $id('go-hs').textContent    = hs.toLocaleString();
+    $id('go-record').classList.toggle('on', isNew);
+    show('gameover');
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+//  MILESTONE
+// ────────────────────────────────────────────────────────────
+function showMilestone(n) {
+  G.lives = LIVES_MAX;
+  updateHUD();
+  $id('ms-title').textContent = n + ' Named!';
+  $id('ms-modal').classList.add('on');
+}
+$id('ms-continue').addEventListener('click', () => {
+  $id('ms-modal').classList.remove('on');
+  waiting = true;
+  setTimeout(advance, 50);
+});
+
+// ────────────────────────────────────────────────────────────
+//  THEME
+// ────────────────────────────────────────────────────────────
+const themeBtn = $id('theme-toggle');
+themeBtn.addEventListener('click', () => {
+  const html = document.documentElement;
+  const dark = html.dataset.theme === 'dark';
+  html.dataset.theme = dark ? 'light' : 'dark';
+  themeBtn.textContent = dark ? '☀️' : '🌙';
+});
+
+// ────────────────────────────────────────────────────────────
+//  SHADOW MODE
+// ────────────────────────────────────────────────────────────
+const shadowBtn = $id('shadow-toggle');
+shadowBtn.addEventListener('click', () => {
+  shadowMode = !shadowMode;
+  shadowBtn.classList.toggle('active', shadowMode);
+  const img = $id('pk-img');
+  if (shadowMode) img.classList.add('silhouette');
+  else img.classList.remove('silhouette');
+});
+
+// ────────────────────────────────────────────────────────────
+//  ORDER MODE
+// ────────────────────────────────────────────────────────────
+document.querySelectorAll('.toggle-btn[data-group="order"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.toggle-btn[data-group="order"]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    orderMode = btn.id.replace('order-', '');
+  });
+});
+
+// ────────────────────────────────────────────────────────────
+//  EVENTS
+// ────────────────────────────────────────────────────────────
+$id('start-btn').addEventListener('click', async () => {
+  show('loading');
+  try {
+    allPk = await buildList((pct, msg) => {
+      $id('load-fill').style.width = pct + '%';
+      $id('load-msg').textContent  = msg;
+    });
+    newGame();
+  } catch(e) {
+    $id('load-msg').textContent = 'Failed to load. Check your connection and refresh.';
+    console.error(e);
+  }
+});
+
+$id('submit-btn').addEventListener('click', submit);
+$id('name-input').addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+$id('skip-btn').addEventListener('click', doSkip);
+
+$id('dispute-btn').addEventListener('click', () => {
+  if (disputeTimer) { clearTimeout(disputeTimer); disputeTimer = null; }
+  const pk = gameList[G.idx];
+  if (G.lives < LIVES_MAX) {
+    G.lives++;
+    const hn = G.lives;
+    const h = document.querySelector(`.heart[data-n="${hn}"]`);
+    if (h) { h.classList.add('pulse'); setTimeout(() => h.classList.remove('pulse'), 400); }
+  }
+  G.score++;
+  streak++;
+  updateHUD();
+  $id('feedback').className = 'feedback ok';
+  $id('feedback').textContent = `✓  Accepted — moving on`;
+  $id('dispute-btn').style.display = 'none';
+  waiting = true;
+  setTimeout(advance, 1200);
+});
+
+$id('go-restart').addEventListener('click', newGame);
+$id('cmp-restart').addEventListener('click', newGame);
+
+// ────────────────────────────────────────────────────────────
+//  REPORT A MISTAKE
+// ────────────────────────────────────────────────────────────
+function openReport() {
+  const pk = gameList[G.idx];
+  $id('report-pk-info').textContent = pk ? `#${String(pk.id).padStart(3,'0')} ${pk.d}` : '';
+  $id('report-text').value = '';
+  $id('report-thanks').style.display = 'none';
+  $id('report-submit').disabled = false;
+  $id('report-modal').classList.add('on');
+  setTimeout(() => $id('report-text').focus(), 50);
+}
+
+function closeReport() {
+  $id('report-modal').classList.remove('on');
+}
+
+$id('report-btn').addEventListener('click', openReport);
+$id('report-cancel').addEventListener('click', closeReport);
+$id('report-modal').addEventListener('click', e => {
+  if (e.target === $id('report-modal')) closeReport();
+});
+
+$id('report-submit').addEventListener('click', () => {
+  const text = $id('report-text').value.trim();
+  if (!text) { $id('report-text').focus(); return; }
+  const pk = gameList[G.idx];
+  const reports = JSON.parse(localStorage.getItem(REPORTS_KEY) || '[]');
+  reports.push({
+    date: new Date().toISOString(),
+    pkId: pk?.id,
+    pkName: pk?.d,
+    pkApi: pk?.api,
+    note: text,
+  });
+  localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+  $id('report-submit').disabled = true;
+  $id('report-thanks').style.display = 'block';
+  setTimeout(closeReport, 1400);
+});
