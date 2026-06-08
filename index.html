@@ -48,6 +48,33 @@
     <div class="rule"><span class="rule-icon">🔁</span><span>Lives are <strong>fully restored</strong> every 100 correct answers</span></div>
     <div class="rule"><span class="rule-icon">✨</span><span><strong>3,112 forms</strong> including all Shinies, Megas, Regionals &amp; more</span></div>
   </div>
+  <div class="divider"></div>
+
+  <!-- ── Settings ── -->
+  <div class="game-settings">
+    <div class="gs-title">⚙ Settings</div>
+
+    <div class="gs-group">
+      <div class="gs-group-label">Answer Mode</div>
+      <div class="gs-options" id="answer-mode-opts">
+        <button class="gs-btn" data-mode="choice">Multiple Choice</button>
+        <button class="gs-btn" data-mode="auto">Autocomplete</button>
+        <button class="gs-btn on" data-mode="free">Free Type</button>
+      </div>
+      <p class="gs-mode-desc" id="gs-mode-desc">Type the full name from memory — hardest, earns the most.</p>
+    </div>
+
+    <div class="gs-group">
+      <div class="gs-group-label">Challenge</div>
+      <button class="gs-btn" id="gs-shadow-btn">👁 Silhouette</button>
+    </div>
+
+    <div class="gs-multiplier">
+      <span>Points per correct answer</span>
+      <strong id="gs-pts-val">3</strong>
+    </div>
+  </div>
+
   <button class="start-btn" id="start-btn">Start Quiz</button>
   <p class="title-note">Data from PokéAPI · cached after first load</p>
 </div>
@@ -92,12 +119,14 @@
   </div>
 
   <div class="input-zone">
-    <div class="input-prompt">Name this Pokémon</div>
-    <div class="input-row">
+    <div class="input-prompt" id="input-prompt">Name this Pokémon</div>
+    <div class="input-row" id="input-row">
       <input id="name-input" type="text" placeholder="Type name and press Enter…"
              autocomplete="off" autocorrect="off" spellcheck="false" />
       <button id="submit-btn">Go</button>
     </div>
+    <div class="autocomplete-list" id="autocomplete-list"></div>
+    <div class="choice-grid" id="choice-grid"></div>
     <div class="feedback" id="feedback"></div>
     <div class="skip-row">
       <button class="skip-btn" id="skip-btn">Skip (lose a life)</button>
@@ -122,8 +151,9 @@
     <strong id="go-score">0</strong>
     Pokémon correctly
   </div>
+  <div class="end-pts" id="go-pts">0 pts</div>
   <div class="new-record" id="go-record">🏅 New High Score!</div>
-  <div class="end-hs">Personal best: <span id="go-hs">0</span></div>
+  <div class="end-hs">Personal best: <span id="go-hs">0</span> pts</div>
 
   <!-- Leaderboard -->
   <div class="lb-section">
@@ -152,8 +182,9 @@
     <strong id="cmp-total">3,112</strong>
     Pokémon!
   </div>
+  <div class="end-pts" id="cmp-pts">0 pts</div>
   <div class="new-record" id="cmp-record">🏅 New High Score!</div>
-  <div class="end-hs">Personal best: <span id="cmp-hs">0</span></div>
+  <div class="end-hs">Personal best: <span id="cmp-hs">0</span> pts</div>
 
   <!-- Leaderboard -->
   <div class="lb-section">

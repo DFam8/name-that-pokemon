@@ -6,7 +6,7 @@
 const LIVES_MAX   = 3;
 const REGEN_AT    = 100;   // lives restored every N correct
 const CACHE_KEY   = 'pkmnquiz_v6_list';
-const HS_KEY      = 'pkmnquiz_highscore';
+const HS_KEY      = 'pkmnquiz_pts_v1';     // points-based score (renamed from count-based)
 const REPORTS_KEY = 'pkmnquiz_reports';
 const API_SCORES  = '/api/scores.php';
 
@@ -228,12 +228,18 @@ function show(name) {
 // ────────────────────────────────────────────────────────────
 let allPk = [], gameList = [];
 let G = {};
-let shadowMode = false;
-let orderMode  = 'random';
+let shadowMode  = false;
+let answerMode  = 'free';   // 'free' | 'auto' | 'choice'
+let orderMode   = 'random';
 let streak = 0;
 let waiting = false;
 let disputeTimer = null;
 let errCount = 0;
+
+function pointsPerCorrect() {
+  const base = answerMode === 'choice' ? 1 : answerMode === 'auto' ? 2 : 3;
+  return base + (shadowMode ? 1 : 0);
+}
 
 function makeGameList() {
   if (orderMode === 'dex')   return [...allPk].sort((a,b) => a.di - b.di);
@@ -244,14 +250,13 @@ function makeGameList() {
 function newGame() {
   stopTimer();
   gameList = makeGameList();
-  G = { idx: 0, lives: LIVES_MAX, score: 0, total: gameList.length };
+  G = { idx: 0, lives: LIVES_MAX, score: 0, correct: 0, total: gameList.length };
   streak = 0;
   waiting = false;
   show('game');
   updateHUD();
   startTimer();
   loadPk(0);
-  if (!('ontouchstart' in window)) $id('name-input').focus();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -262,9 +267,9 @@ function saveHS(n){ localStorage.setItem(HS_KEY, n); }
 
 function updateHUD() {
   $id('score-num').textContent = G.score;
-  $id('score-den').textContent = '/ ' + G.total;
-  $id('score-best').textContent = 'Best: ' + getHS();
-  const pct = G.total > 0 ? G.score / G.total * 100 : 0;
+  $id('score-den').textContent = 'pts';
+  $id('score-best').textContent = G.correct + ' named · Best: ' + getHS() + ' pts';
+  const pct = G.total > 0 ? G.correct / G.total * 100 : 0;
   $id('prog-fill').style.width = pct + '%';
 
   document.querySelectorAll('.heart').forEach(h => {
@@ -300,12 +305,33 @@ function loadPk(idx) {
 
   $id('pk-num').textContent = '#' + String(pk.id).padStart(3, '0');
 
-  const inp = $id('name-input');
-  inp.value = ''; inp.className = ''; inp.disabled = false;
-  $id('submit-btn').disabled = false;
+  // Reset shared UI
   $id('feedback').textContent = ''; $id('feedback').className = 'feedback';
   $id('dispute-btn').style.display = 'none';
   $id('type-row').innerHTML = '';
+  $id('autocomplete-list').classList.remove('visible');
+
+  // Mode-specific input UI
+  if (answerMode === 'choice') {
+    $id('input-row').style.display   = 'none';
+    $id('skip-btn').style.display    = 'none';
+    $id('input-prompt').textContent  = 'Select the correct Pokémon';
+    const choices = generateChoices(pk);
+    renderChoices(choices, pk);
+  } else {
+    $id('input-row').style.display  = '';
+    $id('skip-btn').style.display   = '';
+    $id('choice-grid').classList.remove('visible');
+    $id('choice-grid').innerHTML    = '';
+    $id('input-prompt').textContent = answerMode === 'auto'
+      ? 'Start typing to see suggestions'
+      : 'Name this Pokémon';
+    const inp = $id('name-input');
+    inp.value = ''; inp.className = ''; inp.disabled = false;
+    inp.placeholder = answerMode === 'auto' ? 'Type to search…' : 'Type name and press Enter…';
+    $id('submit-btn').disabled = false;
+    if (!('ontouchstart' in window)) inp.focus();
+  }
 
   const img = $id('pk-img');
   img.className = 'hidden';
@@ -366,7 +392,8 @@ function submit() {
 
   if (ok) {
     inp.classList.add('ok');
-    G.score++;
+    G.score += pointsPerCorrect();
+    G.correct++;
     streak++;
     $id('feedback').className = 'feedback ok';
     $id('feedback').textContent = fuzzy ? `✓  Close enough! (${pk.d})` : `✓  ${pk.d}`;
@@ -374,9 +401,9 @@ function submit() {
     $id('submit-btn').disabled = true;
     revealPk(pk);
 
-    if (G.score > 0 && G.score % REGEN_AT === 0) {
+    if (G.correct > 0 && G.correct % REGEN_AT === 0) {
       waiting = true;
-      setTimeout(() => showMilestone(G.score), 500);
+      setTimeout(() => showMilestone(G.correct), 500);
     } else {
       waiting = true;
       setTimeout(advance, 800);
@@ -455,7 +482,6 @@ function advance() {
   if (G.idx >= gameList.length) { finishGame(true); return; }
   updateHUD();
   loadPk(G.idx);
-  if (!('ontouchstart' in window)) $id('name-input').focus();
 }
 
 function gameOver() { finishGame(false); }
@@ -469,13 +495,15 @@ function finishGame(isComplete) {
   const hs = isNew ? G.score : prev;
 
   if (isComplete) {
-    $id('cmp-total').textContent = G.score.toLocaleString();
+    $id('cmp-total').textContent = G.correct.toLocaleString();
+    $id('cmp-pts').textContent   = G.score.toLocaleString() + ' pts';
     $id('cmp-hs').textContent    = hs.toLocaleString();
     $id('cmp-record').classList.toggle('on', isNew);
     show('complete');
     initLeaderboard('cmp', G.score);
   } else {
-    $id('go-score').textContent = G.score.toLocaleString();
+    $id('go-score').textContent = G.correct.toLocaleString();
+    $id('go-pts').textContent   = G.score.toLocaleString() + ' pts';
     $id('go-hs').textContent    = hs.toLocaleString();
     $id('go-record').classList.toggle('on', isNew);
     show('gameover');
@@ -581,6 +609,138 @@ async function initLeaderboard(suffix, score) {
 }
 
 // ────────────────────────────────────────────────────────────
+//  MULTIPLE CHOICE
+// ────────────────────────────────────────────────────────────
+function generateChoices(pk) {
+  const correct = pk.d;
+  // Draw wrong answers from the same shiny tier so "Shiny X" only appears vs other shinies
+  const pool = allPk.filter(p => p.sh === pk.sh && p.d !== correct);
+  const wrong = shuffle(pool).slice(0, 3).map(p => p.d);
+  return shuffle([correct, ...wrong]);
+}
+
+function renderChoices(choices, pk) {
+  const grid = $id('choice-grid');
+  grid.innerHTML = '';
+  choices.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = name;
+    btn.addEventListener('click', () => selectChoice(name, pk, choices));
+    grid.appendChild(btn);
+  });
+  grid.classList.add('visible');
+}
+
+function selectChoice(picked, pk, choices) {
+  if (waiting) return;
+
+  // Disable all buttons and reveal the correct one
+  document.querySelectorAll('.choice-btn').forEach(btn => {
+    btn.disabled = true;
+    if (btn.textContent === pk.d) btn.classList.add('correct');
+  });
+
+  if (picked === pk.d) {
+    document.querySelectorAll('.choice-btn').forEach(btn => {
+      if (btn.textContent === picked) btn.classList.add('correct');
+    });
+    G.score += pointsPerCorrect();
+    G.correct++;
+    streak++;
+    $id('feedback').className = 'feedback ok';
+    $id('feedback').textContent = `✓  ${pk.d}`;
+    revealPk(pk);
+    updateHUD();
+
+    if (G.correct > 0 && G.correct % REGEN_AT === 0) {
+      waiting = true;
+      setTimeout(() => showMilestone(G.correct), 500);
+    } else {
+      waiting = true;
+      setTimeout(advance, 900);
+    }
+  } else {
+    document.querySelectorAll('.choice-btn').forEach(btn => {
+      if (btn.textContent === picked) btn.classList.add('wrong');
+    });
+    G.lives--;
+    streak = 0;
+    const hn = G.lives + 1;
+    const h = document.querySelector(`.heart[data-n="${hn}"]`);
+    if (h) { h.classList.add('pulse'); setTimeout(() => h.classList.remove('pulse'), 400); }
+    revealPk(pk);
+    updateHUD();
+
+    if (G.lives <= 0) {
+      $id('feedback').className = 'feedback bad';
+      $id('feedback').textContent = `✗  It was "${pk.d}" — Game over!`;
+      waiting = true;
+      $id('dispute-btn').style.display = 'inline-block';
+      disputeTimer = setTimeout(gameOver, 2400);
+    } else {
+      $id('feedback').className = 'feedback bad';
+      $id('feedback').textContent = `✗  It was "${pk.d}" — ${G.lives} life${G.lives === 1 ? '' : 's'} left`;
+      waiting = true;
+      $id('dispute-btn').style.display = 'inline-block';
+      disputeTimer = setTimeout(advance, 2000);
+    }
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+//  AUTOCOMPLETE
+// ────────────────────────────────────────────────────────────
+function updateAutocomplete() {
+  const typed = $id('name-input').value.trim();
+  const list  = $id('autocomplete-list');
+
+  if (typed.length < 2) { list.classList.remove('visible'); return; }
+
+  const normTyped = norm(typed);
+  const matches = allPk
+    .filter(p => norm(p.d).startsWith(normTyped) || norm(p.d).includes(normTyped))
+    .sort((a, b) => {
+      const aS = norm(a.d).startsWith(normTyped) ? 0 : 1;
+      const bS = norm(b.d).startsWith(normTyped) ? 0 : 1;
+      return aS - bS || a.d.localeCompare(b.d);
+    })
+    .slice(0, 8);
+
+  if (!matches.length) { list.classList.remove('visible'); return; }
+
+  list.innerHTML = matches
+    .map(p => `<div class="ac-item" data-name="${htmlEscape(p.d)}">${htmlEscape(p.d)}</div>`)
+    .join('');
+  list.classList.add('visible');
+
+  list.querySelectorAll('.ac-item').forEach(item => {
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();   // stop blur firing before click
+      $id('name-input').value = item.dataset.name;
+      list.classList.remove('visible');
+      submit();
+    });
+  });
+}
+
+// ────────────────────────────────────────────────────────────
+//  SETTINGS PREVIEW (title screen)
+// ────────────────────────────────────────────────────────────
+const MODE_DESCS = {
+  choice: 'Pick from 4 options — lowest risk, lowest reward.',
+  auto:   'Type to see matching names — balanced scoring.',
+  free:   'Type the full name from memory — hardest, earns the most.',
+};
+
+function updatePtsPreview() {
+  const pts = pointsPerCorrect();
+  $id('gs-pts-val').textContent  = pts;
+  $id('gs-mode-desc').textContent = MODE_DESCS[answerMode]
+    + (shadowMode ? ' Silhouette adds +1 pt.' : '');
+}
+
+// ────────────────────────────────────────────────────────────
 //  MILESTONE
 // ────────────────────────────────────────────────────────────
 function showMilestone(n) {
@@ -616,6 +776,8 @@ shadowBtn.addEventListener('click', () => {
   const img = $id('pk-img');
   if (shadowMode) img.classList.add('silhouette');
   else img.classList.remove('silhouette');
+  // Keep title screen preview in sync if visible
+  if ($id('gs-pts-val')) updatePtsPreview();
 });
 
 // ────────────────────────────────────────────────────────────
@@ -659,7 +821,8 @@ $id('dispute-btn').addEventListener('click', () => {
     const h = document.querySelector(`.heart[data-n="${hn}"]`);
     if (h) { h.classList.add('pulse'); setTimeout(() => h.classList.remove('pulse'), 400); }
   }
-  G.score++;
+  G.score += pointsPerCorrect();
+  G.correct++;
   streak++;
   updateHUD();
   $id('feedback').className = 'feedback ok';
@@ -711,6 +874,47 @@ $id('report-submit').addEventListener('click', () => {
   $id('report-submit').disabled = true;
   $id('report-thanks').style.display = 'block';
   setTimeout(closeReport, 1400);
+});
+
+// ────────────────────────────────────────────────────────────
+//  TITLE SCREEN SETTINGS
+// ────────────────────────────────────────────────────────────
+
+// Answer mode buttons
+document.querySelectorAll('#answer-mode-opts .gs-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#answer-mode-opts .gs-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    answerMode = btn.dataset.mode;
+    updatePtsPreview();
+  });
+});
+
+// Silhouette toggle on title screen
+$id('gs-shadow-btn').addEventListener('click', () => {
+  shadowMode = !shadowMode;
+  $id('gs-shadow-btn').classList.toggle('on', shadowMode);
+  $id('shadow-toggle').classList.toggle('active', shadowMode);   // keep in-game btn in sync
+  updatePtsPreview();
+});
+
+// Initialise preview text on page load
+updatePtsPreview();
+
+// ────────────────────────────────────────────────────────────
+//  AUTOCOMPLETE INPUT EVENTS
+// ────────────────────────────────────────────────────────────
+$id('name-input').addEventListener('input', () => {
+  if (answerMode === 'auto') updateAutocomplete();
+});
+
+$id('name-input').addEventListener('blur', () => {
+  // Small delay so mousedown on an ac-item fires first
+  setTimeout(() => $id('autocomplete-list').classList.remove('visible'), 150);
+});
+
+$id('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Escape') $id('autocomplete-list').classList.remove('visible');
 });
 
 // ────────────────────────────────────────────────────────────
