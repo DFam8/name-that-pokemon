@@ -787,6 +787,19 @@ document.querySelectorAll('.toggle-btn[data-group="order"]').forEach(btn => {
 // ────────────────────────────────────────────────────────────
 //  EVENTS
 // ────────────────────────────────────────────────────────────
+// Title leaderboard button
+$id('lb-title-btn').addEventListener('click', async () => {
+  const listEl = $id('lb-modal-list');
+  listEl.innerHTML = '<div class="lb-loading">Loading…</div>';
+  $id('lb-modal').classList.add('on');
+  const scores = await fetchLeaderboard();
+  renderLeaderboard(listEl, scores, null);
+});
+$id('lb-modal-close').addEventListener('click', () => $id('lb-modal').classList.remove('on'));
+$id('lb-modal').addEventListener('click', e => {
+  if (e.target === $id('lb-modal')) $id('lb-modal').classList.remove('on');
+});
+
 // Title → Settings
 $id('start-btn').addEventListener('click', () => {
   // Kick off background load immediately so settings-screen time isn't wasted

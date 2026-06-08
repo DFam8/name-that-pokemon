@@ -202,6 +202,14 @@ body {
 .start-btn:hover { opacity: .9; }
 .start-btn:active { transform: scale(.98); }
 .title-note { font-size: .78rem; color: var(--muted); text-align: center; }
+.lb-title-btn {
+  width: 100%; padding: 12px;
+  background: transparent; color: var(--muted);
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  font-size: .95rem; font-weight: 700; font-family: var(--font);
+  cursor: pointer; transition: all var(--trans);
+}
+.lb-title-btn:hover { border-color: var(--accent); color: var(--text); }
 
 /* ── Loading ── */
 #loading-screen { gap: 20px; text-align: center; }
@@ -466,6 +474,26 @@ body {
   cursor: pointer; transition: opacity var(--trans);
 }
 .modal-btn:hover { opacity: .88; }
+
+/* Leaderboard modal */
+.lb-modal-card {
+  max-width: 400px; width: 90%; padding: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.lb-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 16px;
+}
+.lb-modal-header .modal-title { margin: 0; font-size: 1.2rem; }
+.lb-modal-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 1rem; cursor: pointer; padding: 4px 6px;
+  border-radius: 6px; transition: color var(--trans), background var(--trans);
+  line-height: 1;
+}
+.lb-modal-close:hover { color: var(--text); background: var(--surface2); }
+.lb-modal-card .lb-section { border: none; border-radius: 0; }
+.lb-modal-card .lb-header { border-top: 1px solid var(--border); }
 
 /* Report modal extras */
 .report-card { max-width: 360px; gap: .75rem; display: flex; flex-direction: column; }

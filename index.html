@@ -49,6 +49,7 @@
     <div class="rule"><span class="rule-icon">✨</span><span><strong>3,112 forms</strong> including all Shinies, Megas, Regionals &amp; more</span></div>
   </div>
   <button class="start-btn" id="start-btn">Start Quiz</button>
+  <button class="lb-title-btn" id="lb-title-btn">🏆 View Leaderboard</button>
   <p class="title-note">Data from PokéAPI · cached after first load</p>
 </div>
 
@@ -237,6 +238,20 @@
       <button class="modal-btn" id="report-submit">Submit</button>
     </div>
     <div id="report-thanks">✓ Thanks for the report!</div>
+  </div>
+</div>
+
+<!-- ══ Leaderboard modal ══ -->
+<div class="modal-overlay" id="lb-modal">
+  <div class="modal-card lb-modal-card">
+    <div class="lb-modal-header">
+      <div class="modal-title">🏆 Leaderboard</div>
+      <button class="lb-modal-close" id="lb-modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="lb-section">
+      <div class="lb-header">Top 10</div>
+      <div class="lb-list" id="lb-modal-list"><div class="lb-loading">Loading…</div></div>
+    </div>
   </div>
 </div>
 
