@@ -392,3 +392,15 @@ body {
   #pk-img { width: 160px; height: 160px; }
   .stats-bar { padding: 10px 14px; gap: 10px; }
 }
+
+/* ── Keyboard open (mobile) ── */
+.keyboard-open .pk-stage {
+  min-height: 0;
+  padding: 10px 20px;
+  flex: 0 0 auto;
+}
+.keyboard-open #pk-img {
+  width: 100px;
+  height: 100px;
+  transition: width .2s ease, height .2s ease;
+}
