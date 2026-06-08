@@ -942,6 +942,14 @@ $id('gs-shadow-btn').addEventListener('click', () => {
 updatePtsPreview();
 
 // ────────────────────────────────────────────────────────────
+//  MOBILE KEYBOARD — shrink image so input stays visible
+// ────────────────────────────────────────────────────────────
+if ('ontouchstart' in window) {
+  $id('name-input').addEventListener('focus', () => document.body.classList.add('keyboard-open'));
+  $id('name-input').addEventListener('blur',  () => document.body.classList.remove('keyboard-open'));
+}
+
+// ────────────────────────────────────────────────────────────
 //  AUTOCOMPLETE INPUT EVENTS
 // ────────────────────────────────────────────────────────────
 $id('name-input').addEventListener('input', () => {

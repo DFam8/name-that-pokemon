@@ -647,3 +647,14 @@ body {
   .stats-bar { padding: 10px 14px; gap: 10px; }
 }
 
+/* ── Keyboard open (mobile only) ── */
+.keyboard-open .pk-stage {
+  min-height: 0;
+  padding: 10px 20px;
+  flex: 0 0 auto;
+}
+.keyboard-open #pk-img {
+  width: 100px;
+  height: 100px;
+}
+
