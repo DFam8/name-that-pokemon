@@ -8,6 +8,7 @@ const REGEN_AT    = 100;   // lives restored every N correct
 const CACHE_KEY   = 'pkmnquiz_v6_list';
 const HS_KEY      = 'pkmnquiz_highscore';
 const REPORTS_KEY = 'pkmnquiz_reports';
+const API_SCORES  = '/api/scores.php';
 
 // ────────────────────────────────────────────────────────────
 //  NAME FORMATTING
@@ -472,12 +473,111 @@ function finishGame(isComplete) {
     $id('cmp-hs').textContent    = hs.toLocaleString();
     $id('cmp-record').classList.toggle('on', isNew);
     show('complete');
+    initLeaderboard('cmp', G.score);
   } else {
     $id('go-score').textContent = G.score.toLocaleString();
     $id('go-hs').textContent    = hs.toLocaleString();
     $id('go-record').classList.toggle('on', isNew);
     show('gameover');
+    initLeaderboard('go', G.score);
   }
+}
+
+// ────────────────────────────────────────────────────────────
+//  LEADERBOARD
+// ────────────────────────────────────────────────────────────
+function htmlEscape(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function fetchLeaderboard() {
+  try {
+    const r = await fetch(API_SCORES);
+    if (!r.ok) throw new Error('bad status');
+    const d = await r.json();
+    return d.scores || [];
+  } catch { return null; }
+}
+
+async function submitScore(name, score) {
+  const r = await fetch(API_SCORES, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, score }),
+  });
+  if (!r.ok) throw new Error('server error');
+  return await r.json();
+}
+
+function qualifiesForBoard(score, scores) {
+  if (!scores || score < 1) return false;
+  if (scores.length < 10)  return true;
+  return score > Math.min(...scores.map(s => s.score));
+}
+
+function renderLeaderboard(listEl, scores, highlightScore) {
+  if (!scores) {
+    listEl.innerHTML = '<div class="lb-empty">Could not reach the server.</div>';
+    return;
+  }
+  if (!scores.length) {
+    listEl.innerHTML = '<div class="lb-empty">No scores yet — be the first!</div>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉'];
+  listEl.innerHTML = scores.map((s, i) => `
+    <div class="lb-row${highlightScore && s.score == highlightScore ? ' lb-you' : ''}">
+      <span class="lb-rank">${medals[i] ?? (i + 1)}</span>
+      <span class="lb-name">${htmlEscape(s.name)}</span>
+      <span class="lb-score">${Number(s.score).toLocaleString()}</span>
+    </div>
+  `).join('');
+}
+
+async function initLeaderboard(suffix, score) {
+  const listEl  = $id('lb-list-'  + suffix);
+  const entryEl = $id('lb-entry-' + suffix);
+  const nameEl  = $id('lb-name-'  + suffix);
+  const saveBtn = $id('lb-save-'  + suffix);
+
+  // Reset UI from any previous game
+  listEl.innerHTML = '<div class="lb-loading">Loading…</div>';
+  entryEl.classList.remove('visible');
+  nameEl.value = '';
+  saveBtn.disabled = false;
+  saveBtn.textContent = 'Save';
+
+  const scores = await fetchLeaderboard();
+  renderLeaderboard(listEl, scores, null);
+
+  if (qualifiesForBoard(score, scores)) {
+    entryEl.classList.add('visible');
+    if (!('ontouchstart' in window)) setTimeout(() => nameEl.focus(), 80);
+  }
+
+  // Replace handlers each game (onclick = natural dedup)
+  let submitted = false;
+  async function handleSave() {
+    if (submitted) return;
+    const name = nameEl.value.trim();
+    if (!name) { nameEl.focus(); return; }
+    submitted = true;
+    saveBtn.disabled = true;
+    saveBtn.textContent = '…';
+    try {
+      const res = await submitScore(name, score);
+      entryEl.classList.remove('visible');
+      renderLeaderboard(listEl, res.scores || scores, score);
+    } catch {
+      submitted = false;
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
+  }
+  saveBtn.onclick = handleSave;
+  nameEl.onkeydown = e => { if (e.key === 'Enter') handleSave(); };
 }
 
 // ────────────────────────────────────────────────────────────

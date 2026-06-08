@@ -124,6 +124,22 @@
   </div>
   <div class="new-record" id="go-record">🏅 New High Score!</div>
   <div class="end-hs">Personal best: <span id="go-hs">0</span></div>
+
+  <!-- Leaderboard -->
+  <div class="lb-section">
+    <div class="lb-header">🏆 Top 10</div>
+    <div class="lb-entry-wrap" id="lb-entry-go">
+      <p class="lb-qualify-msg">You made the leaderboard!</p>
+      <div class="lb-name-row">
+        <input id="lb-name-go" class="lb-name-input" type="text" maxlength="10"
+               placeholder="Your name" autocomplete="off" spellcheck="false"
+               autocorrect="off" autocapitalize="characters">
+        <button class="lb-save-btn" id="lb-save-go">Save</button>
+      </div>
+    </div>
+    <div class="lb-list" id="lb-list-go"><div class="lb-loading">Loading…</div></div>
+  </div>
+
   <button class="end-btn" id="go-restart">Try Again</button>
 </div>
 
@@ -138,6 +154,22 @@
   </div>
   <div class="new-record" id="cmp-record">🏅 New High Score!</div>
   <div class="end-hs">Personal best: <span id="cmp-hs">0</span></div>
+
+  <!-- Leaderboard -->
+  <div class="lb-section">
+    <div class="lb-header">🏆 Top 10</div>
+    <div class="lb-entry-wrap" id="lb-entry-cmp">
+      <p class="lb-qualify-msg">You made the leaderboard!</p>
+      <div class="lb-name-row">
+        <input id="lb-name-cmp" class="lb-name-input" type="text" maxlength="10"
+               placeholder="Your name" autocomplete="off" spellcheck="false"
+               autocorrect="off" autocapitalize="characters">
+        <button class="lb-save-btn" id="lb-save-cmp">Save</button>
+      </div>
+    </div>
+    <div class="lb-list" id="lb-list-cmp"><div class="lb-loading">Loading…</div></div>
+  </div>
+
   <button class="end-btn" id="cmp-restart">Play Again</button>
 </div>
 
