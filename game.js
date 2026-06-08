@@ -250,7 +250,7 @@ function newGame() {
   updateHUD();
   startTimer();
   loadPk(0);
-  $id('name-input').focus();
+  if (!('ontouchstart' in window)) $id('name-input').focus();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -454,7 +454,7 @@ function advance() {
   if (G.idx >= gameList.length) { finishGame(true); return; }
   updateHUD();
   loadPk(G.idx);
-  $id('name-input').focus();
+  if (!('ontouchstart' in window)) $id('name-input').focus();
 }
 
 function gameOver() { finishGame(false); }
