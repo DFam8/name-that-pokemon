@@ -762,16 +762,6 @@ themeBtn.addEventListener('click', () => {
 // ────────────────────────────────────────────────────────────
 //  SHADOW MODE
 // ────────────────────────────────────────────────────────────
-const shadowBtn = $id('shadow-toggle');
-shadowBtn.addEventListener('click', () => {
-  shadowMode = !shadowMode;
-  shadowBtn.classList.toggle('active', shadowMode);
-  const img = $id('pk-img');
-  if (shadowMode) img.classList.add('silhouette');
-  else img.classList.remove('silhouette');
-  // Keep title screen preview in sync if visible
-  if ($id('gs-pts-val')) updatePtsPreview();
-});
 
 // ────────────────────────────────────────────────────────────
 //  ORDER MODE
@@ -922,7 +912,6 @@ document.querySelectorAll('#answer-mode-opts .mode-card').forEach(btn => {
 $id('gs-shadow-btn').addEventListener('click', () => {
   shadowMode = !shadowMode;
   $id('gs-shadow-btn').classList.toggle('on', shadowMode);
-  $id('shadow-toggle').classList.toggle('active', shadowMode);   // keep in-game btn in sync
   updatePtsPreview();
 });
 
