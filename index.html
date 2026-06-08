@@ -48,35 +48,56 @@
     <div class="rule"><span class="rule-icon">🔁</span><span>Lives are <strong>fully restored</strong> every 100 correct answers</span></div>
     <div class="rule"><span class="rule-icon">✨</span><span><strong>3,112 forms</strong> including all Shinies, Megas, Regionals &amp; more</span></div>
   </div>
-  <div class="divider"></div>
-
-  <!-- ── Settings ── -->
-  <div class="game-settings">
-    <div class="gs-title">⚙ Settings</div>
-
-    <div class="gs-group">
-      <div class="gs-group-label">Answer Mode</div>
-      <div class="gs-options" id="answer-mode-opts">
-        <button class="gs-btn" data-mode="choice">Multiple Choice</button>
-        <button class="gs-btn" data-mode="auto">Autocomplete</button>
-        <button class="gs-btn on" data-mode="free">Free Type</button>
-      </div>
-      <p class="gs-mode-desc" id="gs-mode-desc">Type the full name from memory — hardest, earns the most.</p>
-    </div>
-
-    <div class="gs-group">
-      <div class="gs-group-label">Challenge</div>
-      <button class="gs-btn" id="gs-shadow-btn">👁 Silhouette</button>
-    </div>
-
-    <div class="gs-multiplier">
-      <span>Points per correct answer</span>
-      <strong id="gs-pts-val">3</strong>
-    </div>
-  </div>
-
   <button class="start-btn" id="start-btn">Start Quiz</button>
   <p class="title-note">Data from PokéAPI · cached after first load</p>
+</div>
+
+<!-- ══ Settings / Mode select ══ -->
+<div id="settings-screen" class="screen">
+  <div class="settings-header">
+    <h2 class="settings-title">How do you want to play?</h2>
+    <p class="settings-sub">Harder modes earn more points per correct answer</p>
+  </div>
+
+  <div class="mode-cards" id="answer-mode-opts">
+    <button class="mode-card" data-mode="choice">
+      <div class="mode-card-icon">🔘</div>
+      <div class="mode-card-name">Multiple Choice</div>
+      <div class="mode-card-desc">Pick from 4 options — recognition over recall</div>
+      <div class="mode-card-pts">×1 pt</div>
+    </button>
+    <button class="mode-card" data-mode="auto">
+      <div class="mode-card-icon">🔤</div>
+      <div class="mode-card-name">Autocomplete</div>
+      <div class="mode-card-desc">Type to search for matching names</div>
+      <div class="mode-card-pts">×2 pts</div>
+    </button>
+    <button class="mode-card on" data-mode="free">
+      <div class="mode-card-icon">✏️</div>
+      <div class="mode-card-name">Free Type</div>
+      <div class="mode-card-desc">Spell the full name from memory</div>
+      <div class="mode-card-pts">×3 pts</div>
+    </button>
+  </div>
+
+  <button class="settings-toggle" id="gs-shadow-btn">
+    <div class="toggle-content">
+      <span class="toggle-icon">👁</span>
+      <div class="toggle-text">
+        <span class="toggle-name">Silhouette Mode</span>
+        <span class="toggle-desc">Pokémon hidden as a shadow — +1 pt per correct</span>
+      </div>
+    </div>
+    <div class="toggle-pill"></div>
+  </button>
+
+  <div class="settings-score-row">
+    <span>Points per correct answer</span>
+    <strong id="gs-pts-val">3</strong>
+  </div>
+
+  <button class="start-btn" id="play-btn">Let's Play!</button>
+  <button class="settings-back-btn" id="settings-back">← Back to title</button>
 </div>
 
 <!-- ══ Loading ══ -->

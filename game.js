@@ -213,6 +213,7 @@ function stopTimer() { cancelAnimationFrame(timerRAF); }
 const $id = id => document.getElementById(id);
 const Screens = {
   title:    $id('title-screen'),
+  settings: $id('settings-screen'),
   loading:  $id('loading-screen'),
   game:     $id('game-screen'),
   gameover: $id('gameover-screen'),
@@ -727,17 +728,9 @@ function updateAutocomplete() {
 // ────────────────────────────────────────────────────────────
 //  SETTINGS PREVIEW (title screen)
 // ────────────────────────────────────────────────────────────
-const MODE_DESCS = {
-  choice: 'Pick from 4 options — lowest risk, lowest reward.',
-  auto:   'Type to see matching names — balanced scoring.',
-  free:   'Type the full name from memory — hardest, earns the most.',
-};
-
 function updatePtsPreview() {
-  const pts = pointsPerCorrect();
-  $id('gs-pts-val').textContent  = pts;
-  $id('gs-mode-desc').textContent = MODE_DESCS[answerMode]
-    + (shadowMode ? ' Silhouette adds +1 pt.' : '');
+  const el = $id('gs-pts-val');
+  if (el) el.textContent = pointsPerCorrect();
 }
 
 // ────────────────────────────────────────────────────────────
@@ -794,13 +787,34 @@ document.querySelectorAll('.toggle-btn[data-group="order"]').forEach(btn => {
 // ────────────────────────────────────────────────────────────
 //  EVENTS
 // ────────────────────────────────────────────────────────────
-$id('start-btn').addEventListener('click', async () => {
+// Title → Settings
+$id('start-btn').addEventListener('click', () => {
+  // Kick off background load immediately so settings-screen time isn't wasted
+  if (!_loadPromise) _loadPromise = buildList(() => {}).catch(() => null);
+  show('settings');
+});
+
+// Settings back
+$id('settings-back').addEventListener('click', () => show('title'));
+
+// Settings → Game
+let _loadPromise = null;
+$id('play-btn').addEventListener('click', async () => {
   show('loading');
   try {
-    allPk = await buildList((pct, msg) => {
+    // If cached, _loadPromise resolves instantly and we skip the visible loading bar
+    allPk = await (_loadPromise || buildList((pct, msg) => {
       $id('load-fill').style.width = pct + '%';
       $id('load-msg').textContent  = msg;
-    });
+    }));
+    // If the silent background load failed, try again with the progress bar
+    if (!allPk || !allPk.length) {
+      allPk = await buildList((pct, msg) => {
+        $id('load-fill').style.width = pct + '%';
+        $id('load-msg').textContent  = msg;
+      });
+    }
+    _loadPromise = null;
     newGame();
   } catch(e) {
     $id('load-msg').textContent = 'Failed to load. Check your connection and refresh.';
@@ -880,10 +894,10 @@ $id('report-submit').addEventListener('click', () => {
 //  TITLE SCREEN SETTINGS
 // ────────────────────────────────────────────────────────────
 
-// Answer mode buttons
-document.querySelectorAll('#answer-mode-opts .gs-btn').forEach(btn => {
+// Answer mode cards
+document.querySelectorAll('#answer-mode-opts .mode-card').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('#answer-mode-opts .gs-btn').forEach(b => b.classList.remove('on'));
+    document.querySelectorAll('#answer-mode-opts .mode-card').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     answerMode = btn.dataset.mode;
     updatePtsPreview();
