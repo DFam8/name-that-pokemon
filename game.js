@@ -957,8 +957,3 @@ $id('name-input').addEventListener('keydown', e => {
   if (e.key === 'Escape') $id('autocomplete-list').classList.remove('visible');
 });
 
-// ────────────────────────────────────────────────────────────
-//  MOBILE KEYBOARD — shrink image so it stays visible
-// ────────────────────────────────────────────────────────────
-$id('name-input').addEventListener('focus', () => document.body.classList.add('keyboard-open'));
-$id('name-input').addEventListener('blur',  () => document.body.classList.remove('keyboard-open'));
