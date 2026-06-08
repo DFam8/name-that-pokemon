@@ -402,5 +402,4 @@ body {
 .keyboard-open #pk-img {
   width: 100px;
   height: 100px;
-  transition: width .2s ease, height .2s ease;
 }

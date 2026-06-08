@@ -616,10 +616,5 @@ $id('report-submit').addEventListener('click', () => {
 // ────────────────────────────────────────────────────────────
 //  MOBILE KEYBOARD — shrink image so it stays visible
 // ────────────────────────────────────────────────────────────
-if (window.visualViewport) {
-  const THRESHOLD = 0.75; // keyboard open if viewport < 75% of screen height
-  window.visualViewport.addEventListener('resize', () => {
-    const ratio = window.visualViewport.height / window.screen.height;
-    document.body.classList.toggle('keyboard-open', ratio < THRESHOLD);
-  });
-}
+$id('name-input').addEventListener('focus', () => document.body.classList.add('keyboard-open'));
+$id('name-input').addEventListener('blur',  () => document.body.classList.remove('keyboard-open'));
