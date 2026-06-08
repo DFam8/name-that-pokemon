@@ -1,4 +1,4 @@
-# Name That Pokémon
+# Name That Pokémon 🎮
 
 A browser-based Pokémon name quiz covering all **3,112+ forms** — including Shinies, Megas, regional variants, Gigantamax, and more.
 
