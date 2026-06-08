@@ -800,14 +800,15 @@ $id('settings-back').addEventListener('click', () => show('title'));
 // Settings → Game
 let _loadPromise = null;
 $id('play-btn').addEventListener('click', async () => {
+  // Data already loaded from a previous game — skip loading screen entirely
+  if (allPk.length) { newGame(); return; }
+
   show('loading');
   try {
-    // If cached, _loadPromise resolves instantly and we skip the visible loading bar
     allPk = await (_loadPromise || buildList((pct, msg) => {
       $id('load-fill').style.width = pct + '%';
       $id('load-msg').textContent  = msg;
     }));
-    // If the silent background load failed, try again with the progress bar
     if (!allPk || !allPk.length) {
       allPk = await buildList((pct, msg) => {
         $id('load-fill').style.width = pct + '%';
@@ -846,8 +847,8 @@ $id('dispute-btn').addEventListener('click', () => {
   setTimeout(advance, 1200);
 });
 
-$id('go-restart').addEventListener('click', newGame);
-$id('cmp-restart').addEventListener('click', newGame);
+$id('go-restart').addEventListener('click',  () => show('settings'));
+$id('cmp-restart').addEventListener('click', () => show('settings'));
 
 // ────────────────────────────────────────────────────────────
 //  REPORT A MISTAKE
