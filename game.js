@@ -323,6 +323,7 @@ function loadPk(idx) {
   $id('dispute-btn').style.display = 'none';
   $id('type-row').innerHTML = '';
   $id('autocomplete-list').classList.remove('visible');
+  $id('holo-overlay').classList.remove('on');
 
   // Mode-specific input UI
   if (answerMode === 'choice') {
@@ -374,6 +375,11 @@ function loadPk(idx) {
     void img.offsetWidth;
     img.classList.add('pop');
     if (shadowMode) img.classList.add('silhouette');
+    if (pk.sh) {
+      const holo = $id('holo-overlay');
+      holo.style.setProperty('--holo-mask', `url("${img.src}")`);
+      holo.classList.add('on');
+    }
   };
   img.src = artUrl(artId, pk.sh);
 }

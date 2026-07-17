@@ -292,10 +292,49 @@ body {
 .shiny-pill.on { display: flex; }
 .pk-img-wrap { position: relative; }
 #pk-img {
+  display: block;
   width: 200px; height: 200px; object-fit: contain;
   position: relative; z-index: 1;
   transition: filter .6s cubic-bezier(.25,.8,.25,1), transform .3s, opacity .25s;
   image-rendering: auto;
+}
+
+/* ── Holographic shine (shiny Pokémon) ── */
+#holo-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .6s ease;
+  mix-blend-mode: screen;
+  background:
+    repeating-linear-gradient(115deg,
+      rgba(255,255,255,.14) 0px, rgba(255,255,255,.14) 1px,
+      transparent 1px, transparent 5px),
+    linear-gradient(115deg,
+      transparent 44%, rgba(255,255,255,.55) 50%, transparent 56%),
+    linear-gradient(115deg,
+      transparent 25%, rgba(255,0,140,.72) 38%,
+      rgba(0,229,255,.68) 50%, rgba(255,222,0,.68) 62%,
+      transparent 75%),
+    linear-gradient(245deg,
+      transparent 30%, rgba(140,90,255,.6) 50%, transparent 70%);
+  background-size: auto, 220% 220%, 240% 240%, 280% 280%;
+  background-position: 0 0, 120% 120%, 120% 120%, -20% -20%;
+  -webkit-mask-image: var(--holo-mask, none);
+          mask-image: var(--holo-mask, none);
+  -webkit-mask-size: contain;    mask-size: contain;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  animation: holoSweep 3.4s linear infinite;
+}
+#holo-overlay.on { opacity: .9; }
+@keyframes holoSweep {
+  0%   { background-position: 0 0, 120% 120%, 120% 120%, -20% -20%; }
+  50%  { background-position: 0 0, -20% -20%, -20% -20%, 120% 120%; }
+  100% { background-position: 0 0, 120% 120%, 120% 120%, -20% -20%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #holo-overlay { animation: none; }
 }
 #pk-img.silhouette { filter: brightness(0) !important; }
 #pk-img.hidden { opacity: 0; }
